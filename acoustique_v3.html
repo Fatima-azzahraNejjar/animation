@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Acoustique 3D — Propagation sonore</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#05070f;font-family:'Segoe UI',system-ui,sans-serif;color:#e8eeff;overflow:hidden;height:100vh}
+canvas{position:fixed;top:0;left:0;z-index:0}
+#panel{
+  position:fixed;top:0;left:0;width:230px;height:100vh;z-index:10;
+  background:linear-gradient(180deg,rgba(4,6,16,.97),rgba(7,10,24,.94));
+  border-right:1px solid rgba(50,80,180,.15);
+  padding:16px 14px;overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:#1a2040 transparent;
+}
+h1{font-size:11px;font-weight:600;letter-spacing:.18em;color:#fff;text-transform:uppercase}
+.sub{font-size:10px;color:#3a4a5a;margin-top:2px;margin-bottom:16px}
+.sec{font-size:9px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:#2e3e5a;margin:13px 0 7px;padding-bottom:3px;border-bottom:1px solid rgba(50,80,180,.10)}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.btn{
+  padding:7px 3px;border-radius:6px;border:1px solid rgba(55,85,180,.20);
+  background:rgba(18,26,55,.55);color:#4a5a7a;font-size:10px;font-weight:500;
+  cursor:pointer;transition:all .14s;text-align:center;line-height:1.4;
+  font-family:inherit;
+}
+.btn small{display:block;font-size:9px;color:#2e3e58;margin-top:1px}
+.btn:hover{background:rgba(35,55,120,.55);color:#7a90c0;border-color:rgba(70,110,220,.28)}
+.btn.on{background:rgba(25,65,195,.22);border-color:#3060d8;color:#70a8f8}
+.btn.on small{color:#4880b8}
+.mbtn{padding:8px 5px;border-radius:6px;border:1px solid rgba(55,85,180,.20);
+  background:rgba(18,26,55,.55);color:#4a5a7a;font-size:11px;font-weight:500;
+  cursor:pointer;transition:all .14s;text-align:center;font-family:inherit}
+.mbtn:hover{background:rgba(35,55,120,.55);color:#7a90c0}
+.mbtn.on{background:rgba(170,80,15,.22);border-color:#c06828;color:#d88040}
+.slbl{display:flex;justify-content:space-between;margin-bottom:5px}
+.slbl span:first-child{font-size:10px;color:#3a4a6a;text-transform:uppercase;letter-spacing:.09em}
+.slbl span:last-child{font-family:monospace;font-size:12px;color:#70b0f8;font-weight:600}
+input[type=range]{width:100%;height:3px;-webkit-appearance:none;appearance:none;
+  background:rgba(45,65,150,.35);border-radius:2px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;
+  border-radius:50%;background:#4888e0;cursor:pointer}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:2px}
+.sc{background:rgba(10,16,38,.72);border:1px solid rgba(38,58,128,.16);border-radius:7px;padding:8px 9px}
+.sc .l{font-size:9px;color:#2e3e58;text-transform:uppercase;letter-spacing:.09em;margin-bottom:3px}
+.sc .v{font-family:monospace;font-size:15px;font-weight:600;color:#d8e8ff;line-height:1}
+.v.o{color:#ffa838}.v.g{color:#38d898}.v.b{color:#58b0f8}.v.r{color:#f86858}
+.leg{display:flex;flex-direction:column;gap:4px}
+.lr{display:flex;align-items:center;gap:7px;font-size:10px;color:#4a5a7a}
+.lc{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sh{display:flex;flex-direction:column;gap:3px}
+.sk{display:flex;align-items:center;gap:6px;font-size:10px;color:#3a4a6a}
+.key{background:rgba(28,38,78,.7);border:1px solid rgba(55,78,160,.22);border-radius:3px;
+  padding:1px 5px;font-family:monospace;font-size:9px;color:#6888c0;flex-shrink:0}
+#dbb{position:fixed;right:14px;top:50%;transform:translateY(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:6px;z-index:10}
+#dbt{font-size:9px;color:#2e3e5a;letter-spacing:.12em;text-transform:uppercase;writing-mode:vertical-rl;transform:rotate(180deg)}
+#dbbar{width:15px;height:185px;background:rgba(8,12,28,.82);border:1px solid rgba(38,58,128,.18);border-radius:7px;overflow:hidden;position:relative}
+#dbfill{position:absolute;bottom:0;left:0;right:0;border-radius:0 0 7px 7px;transition:height .3s;background:linear-gradient(to top,#38f080,#f8c038,#f84838)}
+#dbv{font-family:monospace;font-size:10px;color:#7898b8;text-align:center}
+#bottom{position:fixed;bottom:12px;left:246px;right:42px;display:flex;align-items:center;gap:7px;z-index:10;flex-wrap:wrap}
+.badge{background:rgba(4,7,18,.90);border:1px solid rgba(38,58,128,.22);border-radius:16px;
+  padding:5px 12px;font-size:11px;display:flex;align-items:center;gap:6px}
+.bd{width:6px;height:6px;border-radius:50%;background:#38d880;animation:blink 1.5s ease-in-out infinite}
+.bd.o{background:#f8a838;animation-delay:.35s}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.18}}
+.bl{color:#4a5a7a;font-size:10px}.bv{color:#b8d0f8;font-family:monospace;font-size:11px;font-weight:600}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="panel">
+  <h1>Acoustique 3D</h1>
+  <div class="sub">Propagation sonore — PEN Première</div>
+
+  <div class="sec">Fréquence</div>
+  <div class="grid3">
+    <button class="btn" onclick="setFreq(0)">Grave<small>110 Hz</small></button>
+    <button class="btn" onclick="setFreq(1)">Méd.<small>440 Hz</small></button>
+    <button class="btn on" onclick="setFreq(2)">Aigu<small>2 kHz</small></button>
+  </div>
+  <div class="grid3" style="margin-top:4px">
+    <button class="btn" onclick="setFreq(3)">Grave<small>220 Hz</small></button>
+    <button class="btn" onclick="setFreq(4)">Méd.<small>880 Hz</small></button>
+    <button class="btn" onclick="setFreq(5)">Aigu<small>4 kHz</small></button>
+  </div>
+
+  <div class="sec">Salle</div>
+  <div class="grid2">
+    <button class="mbtn on" id="bv" onclick="setMode('vide')">Vide</button>
+    <button class="mbtn" id="bp" onclick="setMode('pleine')">Pleine</button>
+  </div>
+
+  <div class="sec">Intensité source</div>
+  <div class="slbl"><span>Décibels</span><span id="dbdisp">80 dB</span></div>
+  <input type="range" min="40" max="110" value="80" oninput="setDb(this.value)" style="margin-bottom:12px">
+
+  <div class="sec">Mesures</div>
+  <div class="sgrid">
+    <div class="sc"><div class="l">Fréquence</div><div class="v o" id="sf">2 kHz</div></div>
+    <div class="sc"><div class="l">RT60</div><div class="v g" id="sr">0.40 s</div></div>
+    <div class="sc"><div class="l">dB oreille</div><div class="v b" id="se">71.2</div></div>
+    <div class="sc"><div class="l">Ondes</div><div class="v" id="sw">0</div></div>
+  </div>
+
+  <div class="sec">Ondes</div>
+  <div class="leg">
+    <div class="lr"><div class="lc" style="background:#ffa838"></div>Son direct</div>
+    <div class="lr"><div class="lc" style="background:#38d8a8"></div>1ère réflexion</div>
+    <div class="lr"><div class="lc" style="background:#9878e8"></div>2ème réflexion</div>
+    <div class="lr"><div class="lc" style="background:#606878"></div>Réverbération</div>
+  </div>
+
+  <div class="sec">Contrôles</div>
+  <div class="sh">
+    <div class="sk"><span class="key">Drag</span>Rotation caméra</div>
+    <div class="sk"><span class="key">Scroll</span>Zoom</div>
+    <div class="sk"><span class="key">R</span>Reset ondes</div>
+    <div class="sk"><span class="key">V</span>Vide / Pleine</div>
+  </div>
+</div>
+
+<div id="dbb">
+  <div id="dbt">Intensité</div>
+  <div id="dbbar"><div id="dbfill" style="height:66%"></div></div>
+  <div id="dbv">80</div>
+</div>
+
+<div id="bottom">
+  <div class="badge"><div class="bd"></div><span class="bl">Auditeur</span><span class="bv">EN ÉCOUTE</span></div>
+  <div class="badge"><div class="bd o"></div><span class="bl">Source</span><span class="bv">CLARINETTE</span></div>
+  <div class="badge"><span class="bl">RT60 :</span><span class="bv" id="rb">0.40 s</span><span class="bl" id="mb">salle vide</span></div>
+  <div class="badge"><span class="bl">dB oreille :</span><span class="bv" id="eb">71.2 dB</span></div>
+</div>
+
+<script>
+// ── CANVAS SETUP ─────────────────────────────────────────────────────────────
+var cv = document.getElementById('c');
+var ctx = cv.getContext('2d');
+cv.width = window.innerWidth;
+cv.height = window.innerHeight;
+window.addEventListener('resize', function(){
+  cv.width = window.innerWidth;
+  cv.height = window.innerHeight;
+});
+
+// ── PARAMÈTRES SCÈNE ─────────────────────────────────────────────────────────
+var FREQS = [110,440,2000,220,880,4000];
+var freqIdx = 2, curDb = 80, roomMode = 'vide';
+var tG = 0, wTimer = 0, WAVE_INT = 1.15;
+var waves = [];
+
+// Projection isométrique
+var cx0, cy0; // centre canvas
+var tileW = 80, tileH = 40; // base iso
+
+// Dimensions salle en tuiles
+var RW = 14, RD = 10, RH = 8;
+
+// Camera rotation & zoom
+var camAngle = 0.55; // radians
+var camZoom = 1.0;
+var dragStart = null, dragAngle0 = 0;
+
+// ── PHYSIQUE ─────────────────────────────────────────────────────────────────
+function rt60(freq, mode) {
+  var a = {
+    vide:   {110:.045,220:.055,440:.08,880:.10,2000:.12,4000:.16},
+    pleine: {110:.28, 220:.33, 440:.40,880:.46,2000:.55,4000:.65}
+  };
+  var al = (a[mode][freq]) || .08;
+  var V = RW*RD*RH, S = 2*(RW*RH + RW*RD + RH*RD);
+  return 0.161*V/(al*S);
+}
+function earDb(db) {
+  // distance source→auditeur ~7.8m
+  return db - 20*Math.log10(7.8);
+}
+
+// ── PROJECTION ISO ────────────────────────────────────────────────────────────
+function iso(x, y, z) {
+  // x=droite, y=hauteur, z=profondeur
+  // On applique une rotation autour de l'axe Y
+  var rx = x * Math.cos(camAngle) - z * Math.sin(camAngle);
+  var rz = x * Math.sin(camAngle) + z * Math.cos(camAngle);
+  var sx = rx * tileW * 0.5 * camZoom;
+  var sy = (-rz * tileH * 0.5 - y * tileH * 0.8) * camZoom;
+  return [cx0 + sx, cy0 + sy];
+}
+
+// ── DESSIN SALLE ─────────────────────────────────────────────────────────────
+function drawRoom() {
+  var hw = RW/2, hd = RD/2, hh = RH/2;
+
+  // Sol
+  var corners = [
+    iso(-hw,-hh,-hd), iso(hw,-hh,-hd), iso(hw,-hh,hd), iso(-hw,-hh,hd)
+  ];
+  ctx.beginPath();
+  ctx.moveTo(corners[0][0],corners[0][1]);
+  for(var i=1;i<4;i++) ctx.lineTo(corners[i][0],corners[i][1]);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(20,18,14,0.85)';
+  ctx.fill();
+  // Grille sol
+  ctx.strokeStyle = 'rgba(40,36,28,0.7)';
+  ctx.lineWidth = 0.5;
+  for(var gx=-hw;gx<=hw;gx+=1) {
+    var p1=iso(gx,-hh,-hd), p2=iso(gx,-hh,hd);
+    ctx.beginPath();ctx.moveTo(p1[0],p1[1]);ctx.lineTo(p2[0],p2[1]);ctx.stroke();
+  }
+  for(var gz=-hd;gz<=hd;gz+=1) {
+    var p1=iso(-hw,-hh,gz), p2=iso(hw,-hh,gz);
+    ctx.beginPath();ctx.moveTo(p1[0],p1[1]);ctx.lineTo(p2[0],p2[1]);ctx.stroke();
+  }
+
+  // Murs (faces visibles selon angle caméra)
+  var wallAlpha = 0.10;
+  // Mur gauche
+  var wl = [iso(-hw,-hh,-hd),iso(-hw,hh,-hd),iso(-hw,hh,hd),iso(-hw,-hh,hd)];
+  ctx.beginPath();ctx.moveTo(wl[0][0],wl[0][1]);
+  wl.forEach(function(p){ctx.lineTo(p[0],p[1]);});ctx.closePath();
+  ctx.fillStyle='rgba(40,55,90,'+wallAlpha+')';ctx.fill();
+
+  // Mur arrière
+  var wb = [iso(-hw,-hh,-hd),iso(hw,-hh,-hd),iso(hw,hh,-hd),iso(-hw,hh,-hd)];
+  ctx.beginPath();ctx.moveTo(wb[0][0],wb[0][1]);
+  wb.forEach(function(p){ctx.lineTo(p[0],p[1]);});ctx.closePath();
+  ctx.fillStyle='rgba(40,55,90,'+wallAlpha+')';ctx.fill();
+
+  // Plafond
+  var wt = [iso(-hw,hh,-hd),iso(hw,hh,-hd),iso(hw,hh,hd),iso(-hw,hh,hd)];
+  ctx.beginPath();ctx.moveTo(wt[0][0],wt[0][1]);
+  wt.forEach(function(p){ctx.lineTo(p[0],p[1]);});ctx.closePath();
+  ctx.fillStyle='rgba(30,42,70,0.06)';ctx.fill();
+
+  // Arêtes salle
+  ctx.strokeStyle='rgba(60,90,160,0.45)';ctx.lineWidth=1;
+  var edges=[
+    [[-hw,-hh,-hd],[hw,-hh,-hd]], [[hw,-hh,-hd],[hw,-hh,hd]],
+    [[hw,-hh,hd],[-hw,-hh,hd]], [[-hw,-hh,hd],[-hw,-hh,-hd]],
+    [[-hw,hh,-hd],[hw,hh,-hd]], [[hw,hh,-hd],[hw,hh,hd]],
+    [[hw,hh,hd],[-hw,hh,hd]], [[-hw,hh,hd],[-hw,hh,-hd]],
+    [[-hw,-hh,-hd],[-hw,hh,-hd]], [[hw,-hh,-hd],[hw,hh,-hd]],
+    [[hw,-hh,hd],[hw,hh,hd]], [[-hw,-hh,hd],[-hw,hh,hd]],
+  ];
+  edges.forEach(function(e){
+    var a=iso(e[0][0],e[0][1],e[0][2]), b=iso(e[1][0],e[1][1],e[1][2]);
+    ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();
+  });
+
+  // Panneaux absorbants
+  drawPanel(-hw+0.08, 0.3, 0.5, 0.12, 2.0, 2.5, '#3a2208');
+  drawPanel( hw-0.08, 0.3,-0.5, 0.12, 2.0, 2.5, '#3a2208');
+  drawPanel( 0.5, 0.3,-hd+0.08, 2.5, 2.0, 0.12, '#3a2208');
+}
+
+function drawPanel(x,y,z,pw,ph,pd,col) {
+  var hw2=pw/2,hh2=ph/2,hd2=pd/2;
+  var faces = [
+    // front
+    [iso(x-hw2,y-hh2,z+hd2),iso(x+hw2,y-hh2,z+hd2),iso(x+hw2,y+hh2,z+hd2),iso(x-hw2,y+hh2,z+hd2)],
+    // top
+    [iso(x-hw2,y+hh2,z-hd2),iso(x+hw2,y+hh2,z-hd2),iso(x+hw2,y+hh2,z+hd2),iso(x-hw2,y+hh2,z+hd2)],
+    // side
+    [iso(x+hw2,y-hh2,z-hd2),iso(x+hw2,y-hh2,z+hd2),iso(x+hw2,y+hh2,z+hd2),iso(x+hw2,y+hh2,z-hd2)],
+  ];
+  var cols=['rgba(58,34,8,0.80)','rgba(70,44,12,0.70)','rgba(48,28,6,0.75)'];
+  faces.forEach(function(f,i){
+    ctx.beginPath();ctx.moveTo(f[0][0],f[0][1]);
+    f.forEach(function(p){ctx.lineTo(p[0],p[1]);});ctx.closePath();
+    ctx.fillStyle=cols[i];ctx.fill();
+    ctx.strokeStyle='rgba(80,50,10,0.3)';ctx.lineWidth=0.5;ctx.stroke();
+  });
+}
+
+// ── CLARINETTE ───────────────────────────────────────────────────────────────
+var clariSway = 0;
+function drawClarinet(t) {
+  clariSway = Math.sin(t*1.15)*0.08;
+  var sx=-5.0, sy=-RH/2+1.4, sz=0;
+  // Corps
+  drawCylinder3D(sx,sy,sz, 0.06, 0.04, 1.2, 0.22+clariSway, '#2a1006','#1e0c04');
+  // Pavillon
+  drawCylinder3D(sx+0.25,sy-0.65,sz, 0.12, 0.05, 0.25, 0.22+clariSway, '#2a1006','#1e0c04');
+  // Clés dorées
+  var keyPositions=[-0.4,-0.15,0.10,0.35,0.58];
+  keyPositions.forEach(function(ky){
+    var kx=sx+0.07+ky*0.18, ky2=sy+0.38+ky*0.10;
+    var p=iso(kx,ky2,sz);
+    ctx.beginPath();ctx.arc(p[0],p[1],2.5*camZoom,0,Math.PI*2);
+    ctx.fillStyle='#c09820';ctx.fill();
+  });
+  // Halo source lumineuse
+  var sp=iso(sx,sy,sz);
+  var grad=ctx.createRadialGradient(sp[0],sp[1],2,sp[0],sp[1],40*camZoom);
+  grad.addColorStop(0,'rgba(255,180,60,0.25)');
+  grad.addColorStop(1,'rgba(255,140,30,0)');
+  ctx.beginPath();ctx.arc(sp[0],sp[1],40*camZoom,0,Math.PI*2);
+  ctx.fillStyle=grad;ctx.fill();
+}
+
+function drawCylinder3D(x,y,z,rt,rb,h,tilt,colTop,colSide) {
+  // Vue simplifiée : ellipse + rectangle en projection iso
+  var top=iso(x,y+h/2,z), bot=iso(x,y-h/2,z);
+  ctx.strokeStyle='rgba(80,40,10,0.4)';ctx.lineWidth=0.5;
+  // Corps
+  ctx.beginPath();
+  ctx.moveTo(top[0]-rt*tileW*0.3*camZoom, top[1]);
+  ctx.lineTo(bot[0]-rb*tileW*0.3*camZoom, bot[1]);
+  ctx.lineTo(bot[0]+rb*tileW*0.3*camZoom, bot[1]);
+  ctx.lineTo(top[0]+rt*tileW*0.3*camZoom, top[1]);
+  ctx.closePath();
+  ctx.fillStyle=colSide||'#1a0a04';ctx.fill();ctx.stroke();
+  // Dessus
+  ctx.beginPath();
+  ctx.ellipse(top[0],top[1],rt*tileW*0.3*camZoom,rt*tileH*0.2*camZoom,0,0,Math.PI*2);
+  ctx.fillStyle=colTop||'#2a1006';ctx.fill();ctx.stroke();
+}
+
+// ── MICRO SUR PIED ────────────────────────────────────────────────────────────
+function drawMic(t) {
+  var mx=0.3, my=-RH/2, mz=-1.2;
+  // Pied
+  var bot=iso(mx,my,mz), top=iso(mx,my+1.5,mz);
+  ctx.beginPath();ctx.moveTo(bot[0],bot[1]);ctx.lineTo(top[0],top[1]);
+  ctx.strokeStyle='#222';ctx.lineWidth=2*camZoom;ctx.stroke();
+  // Tête
+  var hp=iso(mx,my+1.55,mz);
+  ctx.beginPath();ctx.arc(hp[0],hp[1],7*camZoom,0,Math.PI*2);
+  ctx.fillStyle='#111';ctx.fill();
+  // LED clignotante
+  var ledBright=0.4+0.4*Math.abs(Math.sin(t*1.8));
+  ctx.beginPath();ctx.arc(hp[0]+5*camZoom,hp[1],2.5*camZoom,0,Math.PI*2);
+  ctx.fillStyle='rgba(0,255,80,'+ledBright+')';ctx.fill();
+}
+
+// ── PERSONNE ─────────────────────────────────────────────────────────────────
+function drawPerson(px,py,pz,skinCol,clothCol,scale,t,isMain) {
+  scale = scale||1;
+  var sc=camZoom*scale;
+
+  function p3(x,y,z){ // position locale → iso
+    // Rotation de la personne vers la source
+    var angle=isMain?Math.PI*0.52:0;
+    var rx=x*Math.cos(angle)-z*Math.sin(angle);
+    var rz=x*Math.sin(angle)+z*Math.cos(angle);
+    return iso(px+rx, py+y, pz+rz);
+  }
+
+  // Chaussures
+  [-0.12,0.12].forEach(function(lx){
+    var p=p3(lx,0.08,0.06);
+    ctx.beginPath();ctx.ellipse(p[0],p[1],6*sc,3.5*sc,0,0,Math.PI*2);
+    ctx.fillStyle='#0e0c0a';ctx.fill();
+  });
+  // Jambes
+  [-0.12,0.12].forEach(function(lx){
+    var bot=p3(lx,0.05,0), top=p3(lx,0.90,0);
+    ctx.beginPath();ctx.moveTo(bot[0],bot[1]);ctx.lineTo(top[0],top[1]);
+    ctx.strokeStyle=clothCol==='#1a2948'?'#0e1828':clothCol;
+    ctx.lineWidth=9*sc;ctx.lineCap='round';ctx.stroke();
+  });
+  // Torse
+  var tb=p3(0,0.95,0), tt=p3(0,1.58,0);
+  ctx.beginPath();ctx.moveTo(tb[0],tb[1]);ctx.lineTo(tt[0],tt[1]);
+  ctx.strokeStyle=clothCol;ctx.lineWidth=17*sc;ctx.lineCap='round';ctx.stroke();
+  // Épaules
+  var sl=p3(-0.22,1.52,0), sr=p3(0.22,1.52,0);
+  ctx.beginPath();ctx.moveTo(sl[0],sl[1]);ctx.lineTo(sr[0],sr[1]);
+  ctx.strokeStyle=clothCol;ctx.lineWidth=10*sc;ctx.lineCap='round';ctx.stroke();
+  // Bras
+  [-1,1].forEach(function(s){
+    var sh=p3(s*0.28,1.52,0), el=p3(s*0.34,1.10,0);
+    ctx.beginPath();ctx.moveTo(sh[0],sh[1]);ctx.lineTo(el[0],el[1]);
+    ctx.strokeStyle=clothCol;ctx.lineWidth=7*sc;ctx.lineCap='round';ctx.stroke();
+    // Main
+    var hp2=p3(s*0.36,0.90,0);
+    ctx.beginPath();ctx.arc(hp2[0],hp2[1],4.5*sc,0,Math.PI*2);
+    ctx.fillStyle=skinCol;ctx.fill();
+  });
+  // Cou
+  var nb=p3(0,1.60,0), nt=p3(0,1.73,0);
+  ctx.beginPath();ctx.moveTo(nb[0],nb[1]);ctx.lineTo(nt[0],nt[1]);
+  ctx.strokeStyle=skinCol;ctx.lineWidth=8*sc;ctx.lineCap='round';ctx.stroke();
+  // Tête
+  var hc=p3(0,1.90,0);
+  ctx.beginPath();ctx.arc(hc[0],hc[1],13*sc,0,Math.PI*2);
+  ctx.fillStyle=skinCol;ctx.fill();
+  // Cheveux
+  ctx.beginPath();ctx.arc(hc[0],hc[1]-2*sc,13.5*sc,Math.PI,Math.PI*2);
+  ctx.fillStyle='#120a04';ctx.fill();
+  // Oreilles (détail important !)
+  [-1,1].forEach(function(s){
+    var ep=p3(s*0.185,1.90,0);
+    ctx.beginPath();ctx.arc(ep[0],ep[1],4*sc,0,Math.PI*2);
+    ctx.fillStyle='#b87050';ctx.fill();
+    ctx.strokeStyle='#a05838';ctx.lineWidth=0.7;ctx.stroke();
+    if(isMain){
+      // Halo d'écoute sur les oreilles
+      var earGlow=ctx.createRadialGradient(ep[0],ep[1],2,ep[0],ep[1],14*sc);
+      earGlow.addColorStop(0,'rgba(80,220,120,0.20)');
+      earGlow.addColorStop(1,'rgba(60,200,100,0)');
+      ctx.beginPath();ctx.arc(ep[0],ep[1],14*sc,0,Math.PI*2);
+      ctx.fillStyle=earGlow;ctx.fill();
+    }
+  });
+  // Yeux
+  if(isMain){
+    [-1,1].forEach(function(s){
+      var ep=p3(s*0.065,1.945,-0.15);
+      ctx.beginPath();ctx.arc(ep[0],ep[1],2.2*sc,0,Math.PI*2);
+      ctx.fillStyle='#060408';ctx.fill();
+    });
+  }
+}
+
+// ── FOULE (mode pleine) ───────────────────────────────────────────────────────
+var CROWD=[
+  [-2.5,-.8,0xd4906a,0x24385a],[-1.2,-.8,0xc07848,0x382018],
+  [ 0.2,-.8,0xe0a878,0x283828],[ 1.6,-.8,0xb86838,0x382840],
+  [-2.5, .5,0xd8a870,0x2a3018],[-1.2, .5,0xd4906a,0x24385a],
+  [ 0.2, .5,0xc07848,0x383028],[ 1.6, .5,0xe0a878,0x242858],
+  [-2.0, 1.8,0xd4906a,0x382018],[ 0.2,1.8,0xb86838,0x283828],
+  [ 1.6, 1.8,0xd8a870,0x24385a],
+  [-2.5,-2.2,0xc07848,0x2a3018],[-1.2,-2.2,0xe0a878,0x382840],
+  [ 0.2,-2.2,0xd4906a,0x383028],[ 1.6,-2.2,0xb86838,0x242858],
+];
+function hexToRgb(h){return 'rgb('+((h>>16)&255)+','+((h>>8)&255)+','+(h&255)+')';}
+
+function drawChair(cx,cz) {
+  var col='#3a2006';
+  var corners=[
+    iso(cx-.2,-RH/2+.46,cz-.2),iso(cx+.2,-RH/2+.46,cz-.2),
+    iso(cx+.2,-RH/2+.46,cz+.2),iso(cx-.2,-RH/2+.46,cz+.2)
+  ];
+  ctx.beginPath();ctx.moveTo(corners[0][0],corners[0][1]);
+  corners.forEach(function(p){ctx.lineTo(p[0],p[1]);});ctx.closePath();
+  ctx.fillStyle=col;ctx.fill();
+  // Dossier
+  var db=[iso(cx-.2,-RH/2+.68,cz-.22),iso(cx+.2,-RH/2+.68,cz-.22),
+          iso(cx+.2,-RH/2+1.10,cz-.22),iso(cx-.2,-RH/2+1.10,cz-.22)];
+  ctx.beginPath();ctx.moveTo(db[0][0],db[0][1]);
+  db.forEach(function(p){ctx.lineTo(p[0],p[1]);});ctx.closePath();
+  ctx.fillStyle='#2e1804';ctx.fill();
+}
+
+// ── ONDES ────────────────────────────────────────────────────────────────────
+var WCOLS_HEX=['rgba(255,168,56,','rgba(56,216,168,','rgba(152,120,232,','rgba(96,104,120,','rgba(70,78,90,'];
+var REFLECT_ORIG=[
+  [0,0,0],[-RW/2,0,0],[RW/2,0,0],[0,0,-RD/2],[0,RH/2,0],[-RW/2,0,-RD/2]
+];
+var WALL_DISTS=[0,RW/2+5.2,RW/2+5.2,RD/2+5.2,RH/2+1.4,8.5];
+
+function spawnWave(order){
+  var freq=FREQS[freqIdx];
+  var rt=rt60(freq,roomMode);
+  var absC=roomMode==='vide'
+    ?[.50,.65,.80,.88,.92][Math.min(order,4)]
+    :[.75,.85,.92,.96,.98][Math.min(order,4)];
+  var orig=REFLECT_ORIG[Math.min(order,REFLECT_ORIG.length-1)];
+  var spd=(1.3+freqIdx*.22)*(1-order*.03);
+  var diag=Math.sqrt(RW*RW+RH*RH+RD*RD);
+  var baseOp=order===0?.55:Math.max(.10,.42-order*.08);
+  waves.push({
+    ox:orig[0],oy:orig[1],oz:orig[2],
+    r:.05,maxR:diag*1.05,spd:spd,
+    absorb:absC,rt:rt,baseOp:baseOp,
+    order:order,age:0,alive:true,
+    col:WCOLS_HEX[Math.min(order,WCOLS_HEX.length-1)]
+  });
+}
+
+function triggerWaves(){
+  var maxRef=roomMode==='vide'?[5,4,3,4,3,2][freqIdx]:[3,3,2,3,2,2][freqIdx];
+  for(var i=0;i<Math.min(maxRef,REFLECT_ORIG.length);i++){
+    (function(idx){
+      var delay=WALL_DISTS[idx]/343*1000;
+      setTimeout(function(){if(tG>0)spawnWave(idx);},delay);
+    })(i);
+  }
+}
+
+function clearWaves(){waves.length=0;}
+
+// ── DESSIN ONDES (ellipses iso) ───────────────────────────────────────────────
+function drawWave(w) {
+  if(w.r<0.1)return;
+  var prog=Math.min(1,w.r/w.maxR);
+  var fade=Math.exp(-w.absorb*w.age/w.rt)*Math.pow(1-prog,.65);
+  var op=Math.max(0,w.baseOp*fade);
+  if(op<.005)return;
+
+  // Centre de l'onde en projection iso
+  var cp=iso(w.ox,w.oy,w.oz);
+  // Rayon projeté : l'onde est une sphère → on dessine 3 ellipses (horizontal, vertical-x, vertical-z)
+  var rx=w.r*tileW*0.5*camZoom;
+  var rz=w.r*tileH*0.5*camZoom;
+  var ry=w.r*tileH*0.8*camZoom;
+
+  ctx.globalAlpha=op;
+
+  // Ellipse horizontale (plan xz)
+  ctx.beginPath();
+  ctx.ellipse(cp[0],cp[1],rx,rz,0,0,Math.PI*2);
+  ctx.strokeStyle=w.col+'1)';
+  ctx.lineWidth=roomMode==='vide'?1.8:1.2;
+  ctx.stroke();
+
+  // Ellipse verticale (plan xy) — montre propagation vers haut/bas
+  var topP=iso(w.ox,w.oy+w.r,w.oz);
+  var botP=iso(w.ox,w.oy-w.r,w.oz);
+  var midY=(topP[1]+botP[1])/2;
+  ctx.beginPath();
+  ctx.ellipse(cp[0],midY,rx*0.4,ry,0,0,Math.PI*2);
+  ctx.strokeStyle=w.col+(op*0.4)+')';
+  ctx.lineWidth=0.8;
+  ctx.stroke();
+
+  // Remplissage léger
+  ctx.beginPath();
+  ctx.ellipse(cp[0],cp[1],rx,rz,0,0,Math.PI*2);
+  ctx.fillStyle=w.col+(op*0.08)+')';
+  ctx.fill();
+
+  ctx.globalAlpha=1;
+}
+
+// ── LIGNE SON DIRECT ──────────────────────────────────────────────────────────
+function drawDirectLine() {
+  var a=iso(-5.0,-RH/2+1.4,0), b=iso(4.5,-RH/2+1.9,0.4);
+  ctx.setLineDash([8,6]);
+  ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);
+  ctx.strokeStyle='rgba(255,168,56,0.18)';ctx.lineWidth=1;ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ── HUD ──────────────────────────────────────────────────────────────────────
+function updateHud(){
+  var freq=FREQS[freqIdx];
+  var rt=rt60(freq,roomMode);
+  var dbe=earDb(curDb);
+  var nw=waves.length;
+  var fStr=freq>=1000?(freq/1000)+' kHz':freq+' Hz';
+  document.getElementById('sf').textContent=fStr;
+  var rtEl=document.getElementById('sr');
+  rtEl.textContent=rt.toFixed(2)+' s';
+  rtEl.className='v '+(rt>1.2?'r':rt>.6?'o':'g');
+  document.getElementById('se').textContent=dbe.toFixed(1);
+  document.getElementById('sw').textContent=nw;
+  document.getElementById('dbdisp').textContent=curDb+' dB';
+  document.getElementById('dbfill').style.height=((curDb/110)*100)+'%';
+  document.getElementById('dbv').textContent=curDb;
+  document.getElementById('rb').textContent=rt.toFixed(2)+' s';
+  document.getElementById('mb').textContent=roomMode==='vide'?'salle vide':'salle pleine';
+  document.getElementById('eb').textContent=dbe.toFixed(1)+' dB';
+}
+
+// ── CONTRÔLES ────────────────────────────────────────────────────────────────
+window.setFreq=function(i){
+  freqIdx=i;
+  document.querySelectorAll('.btn').forEach(function(b,j){b.classList.toggle('on',j===i);});
+  clearWaves();wTimer=WAVE_INT;updateHud();
+};
+window.setMode=function(m){
+  roomMode=m;
+  document.getElementById('bv').classList.toggle('on',m==='vide');
+  document.getElementById('bp').classList.toggle('on',m==='pleine');
+  clearWaves();wTimer=WAVE_INT;updateHud();
+};
+window.setDb=function(v){curDb=+v;updateHud();};
+
+// Drag pour rotation
+cv.addEventListener('mousedown',function(e){
+  if(e.clientX>230){dragStart=e.clientX;dragAngle0=camAngle;}
+});
+cv.addEventListener('mousemove',function(e){
+  if(dragStart!==null){
+    camAngle=dragAngle0-(e.clientX-dragStart)*0.008;
+  }
+});
+cv.addEventListener('mouseup',function(){dragStart=null;});
+cv.addEventListener('mouseleave',function(){dragStart=null;});
+cv.addEventListener('wheel',function(e){
+  e.preventDefault();
+  camZoom=Math.max(0.4,Math.min(2.0,camZoom-e.deltaY*0.001));
+},{passive:false});
+window.addEventListener('keydown',function(e){
+  if(e.key==='r'||e.key==='R'){clearWaves();wTimer=WAVE_INT;}
+  if(e.key==='v'||e.key==='V')window.setMode(roomMode==='vide'?'pleine':'vide');
+});
+
+// ── BOUCLE PRINCIPALE ────────────────────────────────────────────────────────
+var lastT=performance.now();
+updateHud();
+
+function loop(now){
+  requestAnimationFrame(loop);
+  var dt=Math.min((now-lastT)/1000,.05);lastT=now;
+  tG+=dt;wTimer+=dt;
+
+  cx0=cv.width/2+50;
+  cy0=cv.height*0.54;
+
+  // Fond
+  ctx.fillStyle='#05070f';
+  ctx.fillRect(0,0,cv.width,cv.height);
+
+  // Fond dégradé
+  var bg=ctx.createRadialGradient(cx0,cy0,50,cx0,cy0,cv.height*0.7);
+  bg.addColorStop(0,'rgba(10,18,40,0.5)');
+  bg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,cv.width,cv.height);
+
+  // Spawn ondes
+  if(wTimer>=WAVE_INT){wTimer=0;triggerWaves();}
+
+  // Update ondes
+  for(var i=waves.length-1;i>=0;i--){
+    var w=waves[i];
+    w.age+=dt;w.r+=w.spd*dt*5.5;
+    var prog=Math.min(1,w.r/w.maxR);
+    var fade=Math.exp(-w.absorb*w.age/w.rt)*Math.pow(1-prog,.65);
+    if(w.r>=w.maxR||fade<.005){waves.splice(i,1);}
+  }
+
+  // Dessin salle
+  drawRoom();
+
+  // Foule
+  if(roomMode==='pleine'){
+    CROWD.forEach(function(c){
+      drawChair(c[0],-RH/2+.46,c[1]);
+      drawPerson(c[0],-RH/2,c[1],hexToRgb(c[2]),hexToRgb(c[3]),0.78,tG,false);
+    });
+  }
+
+  // Ondes (triées : les plus grandes d'abord)
+  var sorted=waves.slice().sort(function(a,b){return b.r-a.r;});
+  sorted.forEach(drawWave);
+
+  // Ligne directe
+  drawDirectLine();
+
+  // Micro
+  drawMic(tG);
+
+  // Clarinette
+  drawClarinet(tG);
+
+  // Auditeur principal
+  drawPerson(4.5,-RH/2,0.4,'#d4906a','#24406a',1.0,tG,true);
+
+  // Labels flottants
+  ctx.font='bold 11px Segoe UI';
+  ctx.textAlign='center';
+
+  var sp=iso(-5.0,-RH/2+2.8,0);
+  ctx.fillStyle='rgba(255,180,60,0.80)';
+  ctx.fillText('Clarinette',sp[0],sp[1]);
+
+  var ep=iso(4.5,-RH/2+2.8,0.4);
+  ctx.fillStyle='rgba(56,220,130,0.80)';
+  ctx.fillText('Auditeur',ep[0],ep[1]);
+
+  var mp=iso(0.3,-RH/2+2.0,-1.2);
+  ctx.fillStyle='rgba(160,200,255,0.65)';
+  ctx.fillText('Micro',mp[0],mp[1]);
+
+  updateHud();
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
